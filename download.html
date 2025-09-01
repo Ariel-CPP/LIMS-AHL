@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Unduh Laporan</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">LIMS Akuakultur</div>
+    <div id="auth-area" class="auth-area">
+      <button id="btn-login" class="btn">Login Google</button>
+      <div id="user-area" class="user-area hidden">
+        <span id="user-email"></span>
+        <button id="btn-logout" class="btn btn-outline">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <p>Menyiapkan unduhan…</p>
+  </main>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', async () => {
+      await window.appInit();
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      if (!id) { alert('Parameter id tidak ada'); return; }
+
+      // Panggil Edge Function auth-download dengan JWT
+      const jwt = await window.getJwt();
+      if (!jwt) {
+        // login dulu
+        const redirectTo = window.location.href;
+        await window.loginWithGoogle(redirectTo);
+        return;
+      }
+
+      const url = `https://${window.SUPABASE_PROJECT_REF}.functions.supabase.co/auth-download?lg=${encodeURIComponent(id)}`;
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${jwt}` } });
+      if (!resp.ok) {
+        const t = await resp.text();
+        alert(`Gagal mengunduh: ${resp.status} ${t}`);
+        return;
+      }
+      const blob = await resp.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const ext = blob.type.includes('pdf') ? 'pdf' : 'html';
+      a.download = `report-${id}.${ext}`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      // kembali ke dashboard
+      setTimeout(() => window.location.href = './index.html', 1200);
+    });
+  </script>
+</body>
+</html>
