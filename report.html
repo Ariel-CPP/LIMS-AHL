@@ -3,14 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Laporan — Preview</title>
+  <title>LIMS — Report Preview</title>
   <link rel="stylesheet" href="./style.css" />
   <script src="https://unpkg.com/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
   <script defer src="./app.js"></script>
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">LIMS Akuakultur</div>
+    <div class="brand">
+      <div class="brand-title">Laboratory Information Management System</div>
+      <div class="brand-sub">LIMS-AHL</div>
+    </div>
     <div id="auth-area" class="auth-area">
       <button id="btn-login" class="btn">Login Google</button>
       <div id="user-area" class="user-area hidden">
@@ -23,26 +26,24 @@
   <main class="container">
     <div class="actions">
       <button id="btn-print" class="btn">Cetak / Simpan PDF</button>
-      <button id="btn-back" class="btn btn-outline">Kembali</button>
+      <a class="btn btn-outline" href="./index.html">Kembali</a>
     </div>
     <iframe id="report-frame" class="report-frame"></iframe>
   </main>
+
+  <footer class="footer">
+    <small>Provided by: <b>Animal Health Laboratory</b></small>
+  </footer>
 
   <script>
     window.addEventListener('DOMContentLoaded', async () => {
       await window.appInit();
       const params = new URLSearchParams(window.location.search);
       const id = params.get('id');
-      if (!id) {
-        alert('Parameter id tidak ada');
-        return;
-      }
+      if (!id) { alert('Parameter id tidak ada'); return; }
       const html = await window.rpcRenderReportHtml(id);
-      const frame = document.getElementById('report-frame');
-      frame.srcdoc = html || '<p>Data kosong</p>';
-
+      document.getElementById('report-frame').srcdoc = html || '<p>Data kosong</p>';
       document.getElementById('btn-print').onclick = () => window.print();
-      document.getElementById('btn-back').onclick = () => window.location.href = './index.html';
     });
   </script>
 </body>
