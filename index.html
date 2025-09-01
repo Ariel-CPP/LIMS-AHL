@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LIMS Akuakultur — Dashboard</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">LIMS Akuakultur</div>
+    <div id="auth-area" class="auth-area">
+      <button id="btn-login" class="btn">Login Google</button>
+      <div id="user-area" class="user-area hidden">
+        <span id="user-email"></span>
+        <button id="btn-logout" class="btn btn-outline">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <h2>Dashboard Laporan</h2>
+    <div class="actions">
+      <button id="btn-load" class="btn">Muat LabGroup</button>
+    </div>
+
+    <table class="table" id="tbl-lg">
+      <thead>
+        <tr>
+          <th>LabGroup</th>
+          <th>Lab/Site</th>
+          <th>Status</th>
+          <th>ETA</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="tbl-lg-body">
+        <tr><td colspan="5" class="muted">Klik “Muat LabGroup”.</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <footer class="footer">
+    <small>© LIMS Akuakultur — GitHub Pages</small>
+  </footer>
+</body>
+</html>
