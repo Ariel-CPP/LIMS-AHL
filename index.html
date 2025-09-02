@@ -52,35 +52,43 @@
     </div>
   </section>
 
-  <!-- SUBMIT -->
-  <section id="page-submit" class="card" style="display:none">
-    <h3>Pengajuan Sample</h3>
-    <form id="submit-form">
-      <div class="grid">
-        <div>
-          <label>Submission Code</label>
-          <input name="submit_code" required placeholder="SUB-2025-0001"/>
-        </div>
-        <div>
-          <label>Client Name</label>
-          <input name="client_name" placeholder="PT Contoh Sejahtera"/>
-        </div>
-        <div>
-          <label>Pond/Site</label>
-          <input name="pond_site" placeholder="Tambak A-3"/>
-        </div>
-        <div>
-          <label>Notes</label>
-          <input name="notes" placeholder="Keterangan singkat"/>
-        </div>
+<!-- SUBMIT (ganti section lama) -->
+<section id="page-submit" class="card" style="display:none">
+  <h3>Pengajuan Sample</h3>
+  <form id="submit-form">
+    <div class="grid">
+      <div>
+        <label>Submission Code</label>
+        <input name="submit_code" required placeholder="SUB-2025-0001"/>
       </div>
-      <div class="space-top">
-        <button type="submit" class="btn">Simpan</button>
-        <a href="#" class="btn secondary" data-page="dashboard">Kembali</a>
+      <div>
+        <label>Client Name</label>
+        <input name="client_name" placeholder="PT Contoh Sejahtera"/>
       </div>
-    </form>
-    <div id="submit-msg" class="muted space-top"></div>
-  </section>
+      <div>
+        <label>Pond/Site</label>
+        <input name="pond_site" placeholder="Tambak A-3"/>
+      </div>
+      <div>
+        <label>Notes</label>
+        <input name="notes" placeholder="Keterangan singkat"/>
+      </div>
+    </div>
+
+    <div class="space-top">
+      <h4>Daftar Sampel</h4>
+      <div id="samples-wrap"></div>
+      <button class="btn flat" id="btn-add-sample" type="button">+ Tambah Sampel</button>
+    </div>
+
+    <div class="space-top">
+      <button type="submit" class="btn">Simpan</button>
+      <a href="#" class="btn secondary" data-page="dashboard">Kembali</a>
+    </div>
+  </form>
+  <div id="submit-msg" class="muted space-top"></div>
+</section>
+
 
   <!-- USERS (Supervisor) -->
   <section id="page-users" class="card" style="display:none">
