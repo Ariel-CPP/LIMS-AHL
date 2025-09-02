@@ -1,55 +1,44 @@
 <!doctype html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LIMS — Download</title>
-  <link rel="stylesheet" href="./style.css" />
-  <script src="https://unpkg.com/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
-  <script defer src="./app.js"></script>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>AHL LIMS — Downloads</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-title">Laboratory Information Management System</div>
-      <div class="brand-sub">LIMS-AHL</div>
-    </div>
-    <div id="auth-area" class="auth-area">
-      <button id="btn-login" class="btn">Login Google</button>
-      <div id="user-area" class="user-area hidden">
-        <span id="user-email"></span>
-        <button id="btn-logout" class="btn btn-outline">Logout</button>
-      </div>
-    </div>
-  </header>
+<header>
+  <div class="container hdr">
+    <div class="brand">Downloads</div>
+    <div id="whoami" class="muted"></div>
+  </div>
+</header>
 
-  <main class="container">
-    <p>Menyiapkan unduhan…</p>
-  </main>
+<main class="container" id="downloads-root">
+  <div class="card">
+    <a class="btn secondary" href="index.html">← Dashboard</a>
+  </div>
+  <section class="card">
+    <h3>My Report Files</h3>
+    <div id="downloads-mine"></div>
+    <p class="muted">Catatan: tautan PDF muncul jika kolom <code>pdf_url</code> terisi saat laporan di-approve.</p>
+  </section>
+</main>
 
-  <footer class="footer">
-    <small>Provided by: <b>Animal Health Laboratory</b></small>
-  </footer>
+<footer>
+  <div class="container">Provided by: Animal Health Laboratory</div>
+</footer>
 
-  <script>
-    window.addEventListener('DOMContentLoaded', async () => {
-      await window.appInit();
-      const params = new URLSearchParams(window.location.search);
-      const id = params.get('id');
-      if (!id) { alert('Parameter id tidak ada'); return; }
-      const jwt = await window.getJwt();
-      if (!jwt) { await window.loginWithGoogle(window.location.href); return; }
-      const url = `https://${window.SUPABASE_PROJECT_REF}.functions.supabase.co/auth-download?lg=${encodeURIComponent(id)}`;
-      const resp = await fetch(url, { headers: { Authorization: `Bearer ${jwt}` } });
-      if (!resp.ok) { alert(`Gagal: ${resp.status} ${await resp.text()}`); return; }
-      const blob = await resp.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `report-${id}.${blob.type.includes('pdf') ? 'pdf' : 'html'}`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      setTimeout(() => location.href='./index.html', 1000);
-    });
-  </script>
+<script>
+  window.SUPABASE_URL = window.SUPABASE_URL || "https://nemabrzkmiszlmylwfnt.supabase.co";
+  window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbWFicnprbWlzemxteWx3Zm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NDUwOTgsImV4cCI6MjA3MjEyMTA5OH0.7YYm4Q__xi9LxFJeQKD2O8yARWcj_pc8vnuMQ-Qqx1c";
+   window.SUPABASE_URL = "https://nemabrzkmiszlmylwfnt.supabase.co";
+  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbWFicnprbWlzemxteWx3Zm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NDUwOTgsImV4cCI6MjA3MjEyMTA5OH0.7YYm4Q__xi9LxFJeQKD2O8yARWcj_pc8vnuMQ-Qqx1c";
+  window.SUPABASE_PROJECT_REF = "nemabrzkmiszlmylwfnt";
+</script>
+<script type="module">
+  import { bootDownloadsPage } from "./app.js";
+  bootDownloadsPage();
+</script>
 </body>
 </html>
