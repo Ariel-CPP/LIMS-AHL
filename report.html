@@ -1,50 +1,46 @@
 <!doctype html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LIMS — Report Preview</title>
-  <link rel="stylesheet" href="./style.css" />
-  <script src="https://unpkg.com/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
-  <script defer src="./app.js"></script>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>AHL LIMS — Reports</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-title">Laboratory Information Management System</div>
-      <div class="brand-sub">LIMS-AHL</div>
-    </div>
-    <div id="auth-area" class="auth-area">
-      <button id="btn-login" class="btn">Login Google</button>
-      <div id="user-area" class="user-area hidden">
-        <span id="user-email"></span>
-        <button id="btn-logout" class="btn btn-outline">Logout</button>
-      </div>
-    </div>
-  </header>
+<header>
+  <div class="container hdr">
+    <div class="brand">Reports</div>
+    <div id="whoami" class="muted"></div>
+  </div>
+</header>
 
-  <main class="container">
-    <div class="actions">
-      <button id="btn-print" class="btn">Cetak / Simpan PDF</button>
-      <a class="btn btn-outline" href="./index.html">Kembali</a>
-    </div>
-    <iframe id="report-frame" class="report-frame"></iframe>
-  </main>
+<main class="container" id="reports-root">
+  <div class="card">
+    <a class="btn secondary" href="index.html">← Dashboard</a>
+  </div>
 
-  <footer class="footer">
-    <small>Provided by: <b>Animal Health Laboratory</b></small>
-  </footer>
+  <section class="card">
+    <h3>My Reports</h3>
+    <div id="reports-mine"></div>
+  </section>
 
-  <script>
-    window.addEventListener('DOMContentLoaded', async () => {
-      await window.appInit();
-      const params = new URLSearchParams(window.location.search);
-      const id = params.get('id');
-      if (!id) { alert('Parameter id tidak ada'); return; }
-      const html = await window.rpcRenderReportHtml(id);
-      document.getElementById('report-frame').srcdoc = html || '<p>Data kosong</p>';
-      document.getElementById('btn-print').onclick = () => window.print();
-    });
-  </script>
+  <section id="labgroup-wrap" class="card" style="display:none">
+    <h3>Labgroup Reports</h3>
+    <div id="reports-labgroup"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">Provided by: Animal Health Laboratory</div>
+</footer>
+
+<script>
+  window.SUPABASE_URL = window.SUPABASE_URL || "https://YOUR-PROJECT.supabase.co";
+  window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "YOUR-ANON-KEY";
+</script>
+<script type="module">
+  import { bootReportsPage } from "./app.js";
+  bootReportsPage();
+</script>
 </body>
 </html>
