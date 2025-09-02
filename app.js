@@ -2,16 +2,14 @@
   window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbWFicnprbWlzemxteWx3Zm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NDUwOTgsImV4cCI6MjA3MjEyMTA5OH0.7YYm4Q__xi9LxFJeQKD2O8yARWcj_pc8vnuMQ-Qqx1c";
   window.SUPABASE_PROJECT_REF = "nemabrzkmiszlmylwfnt";
 
-// app.js — AHL LIMS v3 (fix schema, logout, sprec-like submit)
-// Requires: <script> window.SUPABASE_URL/ANON_KEY already set </script>
+// app.js — AHL LIMS v3.1 (fix recursion, logout redirect, RPC users, empty messages)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = window.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "";
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// === DB handles
-const db = sb.schema("app");        // <— semua tabel skema app lewat handle ini
+const db = sb.schema("app");
 const $  = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 const PAGES = ["login","dashboard","submit","users","all","verify","reports","downloads"];
@@ -19,7 +17,6 @@ const PAGES = ["login","dashboard","submit","users","all","verify","reports","do
 function show(page){
   PAGES.forEach(p => { const el = $(`#page-${p}`); if(el) el.style.display = (p===page?'block':'none'); });
 }
-
 function safe(x){ return (x??"").toString().replace(/[<>&]/g, c=>({ "<":"&lt;", ">":"&gt;", "&":"&amp;" }[c])); }
 function setClock(sel){ const el=$(sel); if(!el) return; const tick=()=>el.textContent=new Date().toLocaleString(); tick(); setInterval(tick,1000); }
 
@@ -32,26 +29,20 @@ async function getProfile(uid){
 }
 function isSupervisor(role){ return role==="supervisor" || role==="admin"; }
 
-// ===== Auth buttons (more robust) =====
 function hookAuthButtons(){
-  // login
   $("#btn-google")?.addEventListener("click", async ()=>{
     await sb.auth.signInWithOAuth({ provider:"google", options:{ redirectTo: window.location.origin + window.location.pathname }});
   });
-  // logout
   $("#btn-logout")?.addEventListener("click", async ()=>{
     await sb.auth.signOut();
-    // bersihkan UI dan kembali ke login tanpa reload paksa
-    $("#top-user") && ($("#top-user").textContent = "");
-    show("login");
+    // redirect agar aman di semua halaman (index/report/download)
+    window.location.href = "index.html";
   });
-  // re-render bila state auth berubah
-  sb.auth.onAuthStateChange(async (_e,_s)=>{ const s=await getSession(); if(!s) show("login"); });
+  sb.auth.onAuthStateChange(async ()=>{ const s = await getSession(); if(!s) show("login"); });
 }
 
-// ===== Tables rendering =====
 function renderTable(rows, cols, { actions } = {}){
-  if(!rows?.length) return `<div class="muted">Tidak ada data.</div>`;
+  if(!rows?.length) return `<div class="muted">Belum ada sample.</div>`;
   const head = `<tr>${cols.map(c=>`<th>${safe(c)}</th>`).join("")}${actions?"<th>Aksi</th>":""}</tr>`;
   const body = rows.map(r=>{
     const tds = cols.map(c=>`<td>${safe(r[c])}</td>`).join("");
@@ -61,7 +52,7 @@ function renderTable(rows, cols, { actions } = {}){
   return `<table>${head}${body}</table>`;
 }
 
-// ===== Dashboard: my submissions =====
+// ===== Mine
 async function loadMySubmissions(targetSel, uid){
   const el = $(targetSel); if(!el) return;
   el.textContent = "Memuat...";
@@ -70,24 +61,26 @@ async function loadMySubmissions(targetSel, uid){
     .eq("submitter_id", uid)
     .order("created_at",{ascending:false})
     .limit(200);
-  el.innerHTML = error ? error.message
-    : renderTable(data, ["submit_code","client_name","pond_site","status","created_at","submitted_at"]);
+  if(error){ el.textContent = error.message; return; }
+  el.innerHTML = data?.length
+    ? renderTable(data, ["submit_code","client_name","pond_site","status","created_at","submitted_at"])
+    : `<div class="muted">Belum ada sample.</div>`;
 }
 
-// ===== Supervisor: users =====
+// ===== Users (via RPC, untuk supervisor)
 async function loadUsers(targetSel){
   const el = $(targetSel); if(!el) return;
   el.textContent = "Memuat...";
-  const { data, error } = await db.from("user_profiles")
-    .select("user_id, full_name, role, created_at")
-    .order("created_at",{ascending:false})
-    .limit(500);
+  const { data, error } = await sb.rpc("list_user_profiles");
   if(error){ el.textContent = error.message; return; }
-  el.innerHTML = renderTable(data, ["full_name","user_id","role","created_at"], {
-    actions: (u)=>`<select class="role-dd" data-uid="${u.user_id}">
-      ${["admin","supervisor","analyst","submitter"].map(r=>`<option ${r===u.role?"selected":""}>${r}</option>`).join("")}
-    </select>`
-  });
+  const rows = data||[];
+  el.innerHTML = rows.length
+    ? renderTable(rows, ["full_name","user_id","role","created_at"], {
+        actions: (u)=>`<select class="role-dd" data-uid="${u.user_id}">
+          ${["admin","supervisor","analyst","submitter"].map(r=>`<option ${r===u.role?"selected":""}>${r}</option>`).join("")}
+        </select>`
+      })
+    : `<div class="muted">Belum ada sample.</div>`;
   $$(".role-dd").forEach(dd=>dd.addEventListener("change", async (e)=>{
     const target_user = e.currentTarget.getAttribute("data-uid");
     const new_role = e.currentTarget.value;
@@ -96,7 +89,7 @@ async function loadUsers(targetSel){
   }));
 }
 
-// ===== Supervisor: all submissions =====
+// ===== All Submissions (supervisor)
 async function loadAllSubmissions(targetSel){
   const el = $(targetSel); if(!el) return;
   el.textContent = "Memuat...";
@@ -105,9 +98,11 @@ async function loadAllSubmissions(targetSel){
     .order("created_at",{ascending:false})
     .limit(500);
   if(error){ el.textContent = error.message; return; }
-  el.innerHTML = renderTable(data, ["submit_code","client_name","pond_site","status","created_at"], {
-    actions: (x)=>`<button class="btn secondary btn-edit" data-id="${x.id}">Edit</button>`
-  });
+  el.innerHTML = data?.length
+    ? renderTable(data, ["submit_code","client_name","pond_site","status","created_at"], {
+        actions: (x)=>`<button class="btn secondary btn-edit" data-id="${x.id}">Edit</button>`
+      })
+    : `<div class="muted">Belum ada sample.</div>`;
   $$(".btn-edit").forEach(btn=>btn.addEventListener("click", async (e)=>{
     const id = e.currentTarget.getAttribute("data-id");
     const client_name = prompt("Client Name baru (kosong=skip):");
@@ -123,7 +118,7 @@ async function loadAllSubmissions(targetSel){
   }));
 }
 
-// ===== Supervisor: verify reports =====
+// ===== Verify Reports
 async function loadPendingReports(targetSel){
   const el = $(targetSel); if(!el) return;
   el.textContent = "Memuat...";
@@ -133,9 +128,11 @@ async function loadPendingReports(targetSel){
     .order("created_at",{ascending:false})
     .limit(500);
   if(error){ el.textContent = error.message; return; }
-  el.innerHTML = renderTable(data, ["report_code","status"], {
-    actions: (r)=>`<button class="btn btn-approve" data-id="${r.id}">Approve</button>`
-  });
+  el.innerHTML = data?.length
+    ? renderTable(data, ["report_code","status"], {
+        actions: (r)=>`<button class="btn btn-approve" data-id="${r.id}">Approve</button>`
+      })
+    : `<div class="muted">Belum ada sample.</div>`;
   $$(".btn-approve").forEach(btn=>btn.addEventListener("click", async (e)=>{
     const id = e.currentTarget.getAttribute("data-id");
     const u = await getUser();
@@ -146,23 +143,21 @@ async function loadPendingReports(targetSel){
   }));
 }
 
-// ===== Reports: mine + labgroup =====
+// ===== Reports (mine + labgroup)
 async function loadMyReports(targetSel, uid){
   const el = $(targetSel); if(!el) return;
   el.textContent = "Memuat...";
-  // Ambil semua reports + join manual ke submissions (submitter_id)
+  const { data: subs, error: e0 } = await db.from("submissions").select("id").eq("submitter_id", uid).limit(1000);
+  if(e0){ el.textContent = e0.message; return; }
+  if(!subs?.length){ el.innerHTML = `<div class="muted">Belum ada sample.</div>`; return; }
+
+  const subIds = new Set(subs.map(s=>s.id));
   const { data, error } = await db.from("reports")
-    .select("id, report_code, status, approved_at, pdf_url, submission_id, created_at");
+    .select("id, report_code, status, approved_at, pdf_url, submission_id, created_at")
+    .order("created_at",{ascending:false});
   if(error){ el.textContent = error.message; return; }
-
-  // Ambil submission milik user untuk filter
-  const { data: mySubs, error: e2 } = await db.from("submissions")
-    .select("id").eq("submitter_id", uid).limit(1000);
-  if(e2){ el.textContent = e2.message; return; }
-  const mySubIds = new Set((mySubs||[]).map(s=>s.id));
-  const mine = (data||[]).filter(r=>mySubIds.has(r.submission_id));
-
-  if(!mine.length){ el.innerHTML = `<div class="muted">Belum ada laporan.</div>`; return; }
+  const mine = (data||[]).filter(r=>subIds.has(r.submission_id));
+  if(!mine.length){ el.innerHTML = `<div class="muted">Belum ada sample.</div>`; return; }
 
   el.innerHTML = renderTable(
     mine.map(m=>({ ...m, pdf: m.pdf_url ? `<a href="${m.pdf_url}" target="_blank" class="btn flat">PDF</a>` : "" })),
@@ -170,19 +165,20 @@ async function loadMyReports(targetSel, uid){
     { actions:(m)=>m.pdf }
   );
 }
-
 async function loadLabgroupReports(targetSel){
   const el = $(targetSel); if(!el) return;
   el.textContent = "Memuat...";
-  // view di PUBLIC
   const { data, error } = await sb.from("v_my_labgroup_reports").select("*").limit(500);
-  el.innerHTML = error ? error.message
-    : renderTable(data, ["report_code","report_status","submit_code","client_name","pond_site","submission_created_at"]);
+  el.innerHTML = error
+    ? error.message
+    : (data?.length
+       ? renderTable(data, ["report_code","report_status","submit_code","client_name","pond_site","submission_created_at"])
+       : `<div class="muted">Belum ada sample.</div>`);
 }
 
-// ===== Submit: sprec-like multi-sample =====
+// ===== Submit — multi-sample
 function addSampleRow(){
-  const wrap = $("#samples-wrap");
+  const wrap = $("#samples-wrap"); if(!wrap) return;
   const row = document.createElement("div");
   row.className = "grid sample-row";
   row.innerHTML = `
@@ -195,20 +191,16 @@ function addSampleRow(){
   wrap.appendChild(row);
   row.querySelector(".btn-del-sample").addEventListener("click", ()=> row.remove());
 }
-
 function hookSubmitForm(){
-  // tombol tambah baris sample
   $("#btn-add-sample")?.addEventListener("click", (e)=>{ e.preventDefault(); addSampleRow(); });
+  $("#btn-back-to-dash")?.addEventListener("click", (e)=>{ e.preventDefault(); show("dashboard"); });
 
-  // submit
   $("#submit-form")?.addEventListener("submit", async (e)=>{
     e.preventDefault();
-    const msg = $("#submit-msg");
-    msg.textContent = "Menyimpan...";
+    const msg = $("#submit-msg"); msg.textContent = "Menyimpan...";
     const fd = new FormData(e.currentTarget);
     const u  = await getUser();
 
-    // 1) insert submission
     const subPayload = {
       submitter_id: u.id,
       submit_code : fd.get("submit_code"),
@@ -221,7 +213,6 @@ function hookSubmitForm(){
     const { data: subIns, error: e1 } = await db.from("submissions").insert(subPayload).select().single();
     if(e1){ msg.textContent = e1.message; return; }
 
-    // 2) insert samples (jika ada)
     const rows = $$(".sample-row");
     if(rows.length){
       const samples = rows.map(r=>{
@@ -234,7 +225,7 @@ function hookSubmitForm(){
           matrix       : get("matrix"),
           collected_at
         };
-      }).filter(s => s.sample_code); // minimal butuh kode
+      }).filter(s => s.sample_code);
       if(samples.length){
         const { error: e2 } = await db.from("samples").insert(samples);
         if(e2){ msg.textContent = "Submission tersimpan, namun gagal menyimpan sampel: " + e2.message; return; }
@@ -242,12 +233,11 @@ function hookSubmitForm(){
     }
     msg.textContent = `Tersimpan: ${subIns.submit_code}`;
     $("#submit-form").reset();
-    // kosongkan baris samples kecuali satu
     $("#samples-wrap").innerHTML = ""; addSampleRow();
   });
 }
 
-// ===== Boots =====
+// ===== Boots
 export async function bootIndex(){
   hookAuthButtons();
   setClock("#clock");
@@ -260,16 +250,12 @@ export async function bootIndex(){
   $("#top-user") && ($("#top-user").textContent = `${profile?.full_name || u.email || ""} (${profile?.role || "submitter"})`);
   $("#role") && ($("#role").textContent = profile?.role || "submitter");
 
-  // Landing: dashboard
   show("dashboard");
   await loadMySubmissions("#mine", u.id);
 
-  // Submit
   hookSubmitForm();
-  // siapkan satu baris sample awal
   if(!$(".sample-row")) addSampleRow();
 
-  // Supervisor console
   if(isSupervisor(profile?.role)){
     $("#supervisor-block") && ($("#supervisor-block").style.display = "block");
     $('[data-page="users"]')?.addEventListener("click", ()=> loadUsers("#users"));
@@ -279,14 +265,15 @@ export async function bootIndex(){
     $("#supervisor-block") && ($("#supervisor-block").style.display = "none");
   }
 
-  // generic nav
-  $$('[data-page]').forEach(a=>a.addEventListener("click",(e)=>{ e.preventDefault(); show(e.currentTarget.getAttribute("data-page")); }));
+  $$('[data-page]').forEach(a=>a.addEventListener("click",(e)=>{
+    e.preventDefault();
+    show(e.currentTarget.getAttribute("data-page"));
+  }));
 }
 
 export async function bootReportsPage(){
   hookAuthButtons();
-  const s = await getSession();
-  if(!s){ show("login"); return; }
+  const s = await getSession(); if(!s){ return; }
   const u = s.user;
   const profile = await getProfile(u.id);
   $("#whoami") && ($("#whoami").textContent = `${profile?.full_name || u.email || ""} (${profile?.role || "submitter"})`);
@@ -299,15 +286,13 @@ export async function bootReportsPage(){
 
 export async function bootDownloadsPage(){
   hookAuthButtons();
-  const s = await getSession();
-  if(!s){ show("login"); return; }
+  const s = await getSession(); if(!s){ return; }
   const u = s.user;
   const profile = await getProfile(u.id);
   $("#whoami") && ($("#whoami").textContent = `${profile?.full_name || u.email || ""} (${profile?.role || "submitter"})`);
   await loadMyReports("#downloads-mine", u.id);
 }
 
-// auto detect
 document.addEventListener("DOMContentLoaded", ()=>{
   if($("#page-dashboard") || $("#page-login")) return void bootIndex();
   if($("#reports-root")) return void bootReportsPage();
