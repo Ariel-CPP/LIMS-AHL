@@ -1,75 +1,65 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Laboratory Information Management System</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:#f7fafc;color:#1a202c}
-header,footer{background:#1f2937;color:#fff;padding:12px 20px}
-.container{max-width:1100px;margin:0 auto;padding:20px}
-nav{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
-button, .btn{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px 14px;cursor:pointer}
-.btn.secondary{background:#6b7280}
-.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-.muted{color:#6b7280}
-.menu a{display:inline-block;margin-right:10px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-input,select{padding:10px;border:1px solid #d1d5db;border-radius:8px;width:100%}
-label{font-size:12px;color:#374151}
-</style>
-</head>
-<body>
-<header>
-<div class="container" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
-<div style="font-weight:700">Laboratory Information Management System</div>
-<div id="auth-area">
-<button id="btn-login">Login</button>
-<button id="btn-logout" class="btn secondary" style="display:none">Logout</button>
-</div>
-</div>
-</header>
+if(pond_site!==null && pond_site!=='') patch.pond_site = pond_site;
+if(status!==null && status!=='') patch.status = status;
+if(Object.keys(patch).length===0) return;
+const { error } = await supabase.from('app.submissions').update(patch).eq('id', id);
+if(error) alert(error.message); else loadAll();
+});
+});
+}
 
 
-<main class="container">
-<!-- Landing Page -->
-<section id="landing" class="card">
-<h2>Welcome to AHL LIMS</h2>
-<p class="muted">Manage sample submissions, track tests, and generate reports.</p>
-<div class="menu" style="margin-top:8px">
-<a href="#" class="btn" data-page="submit">Submit Sample</a>
-<a href="#" class="btn" data-page="calendar">Calendar</a>
-<a href="#" class="btn" data-page="reports">My Reports</a>
-</div>
-<div style="margin-top:12px" class="muted">Time now: <span id="clock"></span></div>
-</section>
+// Supervisor: Verify Results (approve reports)
+async function loadVerify(){
+const { data, error } = await supabase.from('app.reports')
+.select('id, report_code, status, approved_at, submission_id')
+.is('approved_at', null)
+.order('created_at', { ascending:false }).limit(200);
+if(error){ $('#verify').textContent = error.message; return; }
+if(!data?.length){ $('#verify').innerHTML = '<div class="muted">Tidak ada report untuk diverifikasi.</div>'; return; }
+const rows = data.map(r=>
+`<tr>
+<td>${r.report_code}</td>
+<td>${r.status}</td>
+<td><button class="btn btn-approve" data-id="${r.id}">Approve</button></td>
+</tr>`).join('');
+$('#verify').innerHTML = `<table><tr><th>Report</th><th>Status</th><th>Aksi</th></tr>${rows}</table>`;
+document.querySelectorAll('.btn-approve').forEach(btn=>{
+btn.addEventListener('click', async (e)=>{
+const id = e.currentTarget.getAttribute('data-id');
+const u = (await supabase.auth.getUser()).data.user;
+const { error } = await supabase.from('app.reports').update({ approved_by: u.id, approved_at: new Date().toISOString(), status: 'COMPLETED' }).eq('id', id);
+if(error) alert(error.message); else loadVerify();
+});
+});
+}
 
 
-<!-- Submit Sample -->
-<section id="page-submit" class="card" style="display:none">
-<h3>Submit Sample</h3>
-<form id="submit-form">
-<div class="grid">
-<div>
-<label>Client Name</label>
-<input name="client_name" placeholder="PT Contoh Sejahtera" />
-</div>
-<div>
-<label>Pond/Site</label>
-<input name="pond_site" placeholder="Tambak A-3" />
-</div>
-<div>
-<label>Submission Code</label>
-<input name="submit_code" placeholder="SUB-2025-0001" required />
-</div>
-<div>
-<label>Notes</label>
-<input name="notes" placeholder="Keterangan singkat" />
-</div>
-</div>
-<div style="margin-top:12px">
-<button type="submit" class="btn">Save Draft</button>
-<button type="button" id="btn-submit-final" class="btn secondary">Submit</button>
+// Navigation hooks
+document.querySelector('[data-page="users"]').addEventListener('click', loadUsers);
+document.querySelector('[data-page="all"]').addEventListener('click', loadAll);
+document.querySelector('[data-page="verify"]').addEventListener('click', loadVerify);
+
+
+// Boot flow
+async function boot(){
+const { data: { session } } = await supabase.auth.getSession();
+if(!session){ show('login'); $('#top-user').textContent=''; return; }
+const user = session.user;
+const profile = await getProfile(user.id);
+$('#top-user').textContent = (profile?.full_name||user.email||'') + ' (' + (profile?.role||'submitter') + ')';
+$('#role').textContent = profile?.role || 'submitter';
+show('dashboard');
+await renderMine(user);
+if(profile?.role==='supervisor' || profile?.role==='admin'){
+$('#supervisor-block').style.display='block';
+} else {
+$('#supervisor-block').style.display='none';
+}
+}
+
+
+await boot();
+</script>
+</body>
 </html>
