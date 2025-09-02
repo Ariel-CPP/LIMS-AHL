@@ -19,17 +19,18 @@
 
 <main class="container" id="reports-root">
   <div class="card">
-    <a class="btn secondary" href="index.html">← Dashboard</a>
+    <!-- BACK hanya kembali ke index (Dashboard), tidak logout -->
+    <a class="btn secondary" href="index.html#dashboard">← Dashboard</a>
   </div>
 
-  <section class="card">
+  <section class="card" id="mine">
     <h3>My Reports</h3>
-    <div id="reports-mine"></div>
+    <div id="reports-mine"><div class="muted">Belum ada sample.</div></div>
   </section>
 
   <section id="labgroup-wrap" class="card" style="display:none">
     <h3>Labgroup Reports</h3>
-    <div id="reports-labgroup"></div>
+    <div id="reports-labgroup"><div class="muted">Belum ada sample.</div></div>
   </section>
 </main>
 
@@ -37,17 +38,15 @@
   <div class="container">Provided by: Animal Health Laboratory</div>
 </footer>
 
-<!-- ===== ENV Supabase (dari Anda) ===== -->
+<!-- ===== ENV Supabase ===== -->
 <script>
-  // ====== GANTI ENV DI BAWAH INI ======
   window.SUPABASE_URL ="https://nemabrzkmiszlmylwfnt.supabase.co";
   window.SUPABASE_ANON_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbWFicnprbWlzemxteWx3Zm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NDUwOTgsImV4cCI6MjA3MjEyMTA5OH0.7YYm4Q__xi9LxFJeQKD2O8yARWcj_pc8vnuMQ-Qqx1c";
   window.SUPABASE_PROJECT_REF ="nemabrzkmiszlmylwfnt";
+  window.SPREC_SCHEMA = "app";
 </script>
 <script type="module">
   import { bootReportsPage } from "./app.js";
-  // tombol logout ditangani oleh app.js (hookAuthButtons)
-  // boot halaman report
   bootReportsPage();
 </script>
 </body>
