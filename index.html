@@ -31,15 +31,15 @@
       <h2>Dashboard</h2>
       <div class="row-actions">
         <a href="#" class="btn" data-page="submit">Pengajuan Sample</a>
-        <a href="report.html" class="btn secondary">Reports</a>
-        <a href="download.html" class="btn secondary">Downloads</a>
+        <a href="report.html#mine" class="btn secondary">Reports</a>
+        <a href="download.html#mine" class="btn secondary">Downloads</a>
       </div>
     </div>
     <div class="muted">Waktu: <span id="clock"></span> • Peran: <span id="role"></span></div>
 
     <div class="card">
       <h3>Sample Saya</h3>
-      <div id="mine"></div>
+      <div id="mine"><div class="muted">Belum ada sample.</div></div>
     </div>
 
     <div id="supervisor-block" style="display:none">
@@ -54,9 +54,10 @@
     </div>
   </section>
 
-  <!-- ===== SUBMIT (multi-sample) ===== -->
+  <!-- ===== SUBMIT (multi-sample + SPREC) ===== -->
   <section id="page-submit" class="card" style="display:none">
     <h3>Pengajuan Sample</h3>
+
     <form id="submit-form">
       <div class="grid">
         <div>
@@ -78,36 +79,38 @@
       </div>
 
       <div class="space-top">
-        <h4>Daftar Sampel</h4>
+        <h4>Daftar Sampel (SPREC)</h4>
         <div id="samples-wrap"></div>
         <button class="btn flat" id="btn-add-sample" type="button">+ Tambah Sampel</button>
       </div>
 
       <div class="space-top">
         <button type="submit" class="btn">Simpan</button>
+        <!-- kembali ke dashboard, TIDAK logout -->
         <button type="button" class="btn secondary" id="btn-back-to-dash">Kembali</button>
       </div>
     </form>
+
     <div id="submit-msg" class="muted space-top"></div>
   </section>
 
   <!-- ===== USERS (Supervisor) ===== -->
   <section id="page-users" class="card" style="display:none">
     <h3>Users</h3>
-    <div id="users"></div>
+    <div id="users"><div class="muted">Belum ada sample.</div></div>
     <p class="muted">Perubahan peran menggunakan RPC <code>app.set_user_role</code>.</p>
   </section>
 
   <!-- ===== ALL SAMPLES (Supervisor) ===== -->
   <section id="page-all" class="card" style="display:none">
     <h3>All Samples</h3>
-    <div id="all"></div>
+    <div id="all"><div class="muted">Belum ada sample.</div></div>
   </section>
 
   <!-- ===== VERIFY RESULTS (Supervisor) ===== -->
   <section id="page-verify" class="card" style="display:none">
     <h3>Verify Results</h3>
-    <div id="verify"></div>
+    <div id="verify"><div class="muted">Belum ada sample.</div></div>
   </section>
 </main>
 
@@ -115,12 +118,15 @@
   <div class="container">Provided by: Animal Health Laboratory</div>
 </footer>
 
-<!-- ===== ENV Supabase (dari Anda) ===== -->
+<!-- ===== ENV Supabase ===== -->
 <script>
-  // ====== GANTI ENV DI BAWAH INI ======
+  // proyek Anda
   window.SUPABASE_URL ="https://nemabrzkmiszlmylwfnt.supabase.co";
   window.SUPABASE_ANON_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbWFicnprbWlzemxteWx3Zm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NDUwOTgsImV4cCI6MjA3MjEyMTA5OH0.7YYm4Q__xi9LxFJeQKD2O8yARWcj_pc8vnuMQ-Qqx1c";
   window.SUPABASE_PROJECT_REF ="nemabrzkmiszlmylwfnt";
+
+  // lokasi tabel SPREC Anda: "app" (umumnya) atau "public"
+  window.SPREC_SCHEMA = "app";
 </script>
 <script type="module" src="app.js"></script>
 </body>
