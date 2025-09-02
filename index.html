@@ -10,19 +10,22 @@
 <header>
   <div class="container hdr">
     <div class="brand">Laboratory Information Management System</div>
-    <div id="top-user" class="muted"></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div id="top-user" class="muted"></div>
+      <button id="btn-logout" class="btn secondary">Logout</button>
+    </div>
   </div>
 </header>
 
 <main class="container">
-  <!-- LOGIN -->
+  <!-- ===== LOGIN ===== -->
   <section id="page-login" class="card">
     <h2>Masuk dengan Google</h2>
     <p class="muted">Gunakan akun Google Anda untuk mengakses AHL LIMS.</p>
     <button id="btn-google" class="btn">Login Google</button>
   </section>
 
-  <!-- DASHBOARD -->
+  <!-- ===== DASHBOARD ===== -->
   <section id="page-dashboard" class="card" style="display:none">
     <div class="row">
       <h2>Dashboard</h2>
@@ -30,7 +33,6 @@
         <a href="#" class="btn" data-page="submit">Pengajuan Sample</a>
         <a href="report.html" class="btn secondary">Reports</a>
         <a href="download.html" class="btn secondary">Downloads</a>
-        <button id="btn-logout" class="btn secondary">Logout</button>
       </div>
     </div>
     <div class="muted">Waktu: <span id="clock"></span> • Peran: <span id="role"></span></div>
@@ -52,58 +54,57 @@
     </div>
   </section>
 
-<!-- SUBMIT (ganti section lama) -->
-<section id="page-submit" class="card" style="display:none">
-  <h3>Pengajuan Sample</h3>
-  <form id="submit-form">
-    <div class="grid">
-      <div>
-        <label>Submission Code</label>
-        <input name="submit_code" required placeholder="SUB-2025-0001"/>
+  <!-- ===== SUBMIT (multi-sample) ===== -->
+  <section id="page-submit" class="card" style="display:none">
+    <h3>Pengajuan Sample</h3>
+    <form id="submit-form">
+      <div class="grid">
+        <div>
+          <label>Submission Code</label>
+          <input name="submit_code" required placeholder="SUB-2025-0001"/>
+        </div>
+        <div>
+          <label>Client Name</label>
+          <input name="client_name" placeholder="PT Contoh Sejahtera"/>
+        </div>
+        <div>
+          <label>Pond/Site</label>
+          <input name="pond_site" placeholder="Tambak A-3"/>
+        </div>
+        <div>
+          <label>Notes</label>
+          <input name="notes" placeholder="Keterangan singkat"/>
+        </div>
       </div>
-      <div>
-        <label>Client Name</label>
-        <input name="client_name" placeholder="PT Contoh Sejahtera"/>
+
+      <div class="space-top">
+        <h4>Daftar Sampel</h4>
+        <div id="samples-wrap"></div>
+        <button class="btn flat" id="btn-add-sample" type="button">+ Tambah Sampel</button>
       </div>
-      <div>
-        <label>Pond/Site</label>
-        <input name="pond_site" placeholder="Tambak A-3"/>
+
+      <div class="space-top">
+        <button type="submit" class="btn">Simpan</button>
+        <button type="button" class="btn secondary" id="btn-back-to-dash">Kembali</button>
       </div>
-      <div>
-        <label>Notes</label>
-        <input name="notes" placeholder="Keterangan singkat"/>
-      </div>
-    </div>
+    </form>
+    <div id="submit-msg" class="muted space-top"></div>
+  </section>
 
-    <div class="space-top">
-      <h4>Daftar Sampel</h4>
-      <div id="samples-wrap"></div>
-      <button class="btn flat" id="btn-add-sample" type="button">+ Tambah Sampel</button>
-    </div>
-
-    <div class="space-top">
-      <button type="submit" class="btn">Simpan</button>
-      <a href="#" class="btn secondary" data-page="dashboard">Kembali</a>
-    </div>
-  </form>
-  <div id="submit-msg" class="muted space-top"></div>
-</section>
-
-
-  <!-- USERS (Supervisor) -->
+  <!-- ===== USERS (Supervisor) ===== -->
   <section id="page-users" class="card" style="display:none">
     <h3>Users</h3>
     <div id="users"></div>
-    <p class="muted">Role diubah via RPC <code>app.set_user_role</code>.</p>
+    <p class="muted">Perubahan peran menggunakan RPC <code>app.set_user_role</code>.</p>
   </section>
 
-  <!-- ALL SAMPLES (Supervisor) -->
+  <!-- ===== ALL SAMPLES (Supervisor) ===== -->
   <section id="page-all" class="card" style="display:none">
     <h3>All Samples</h3>
     <div id="all"></div>
   </section>
 
-  <!-- VERIFY (Supervisor) -->
+  <!-- ===== VERIFY RESULTS (Supervisor) ===== -->
   <section id="page-verify" class="card" style="display:none">
     <h3>Verify Results</h3>
     <div id="verify"></div>
@@ -114,14 +115,12 @@
   <div class="container">Provided by: Animal Health Laboratory</div>
 </footer>
 
-<!-- ====== ENV (ISI nilainya) ====== -->
+<!-- ===== ENV Supabase (dari Anda) ===== -->
 <script>
-  window.SUPABASE_URL = window.SUPABASE_URL || "https://nemabrzkmiszlmylwfnt.supabase.co";
-  window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbWFicnprbWlzemxteWx3Zm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NDUwOTgsImV4cCI6MjA3MjEyMTA5OH0.7YYm4Q__xi9LxFJeQKD2O8yARWcj_pc8vnuMQ-Qqx1c";
-  window.SUPABASE_PROJECT_REF = "nemabrzkmiszlmylwfnt";
-   window.SUPABASE_URL = "https://nemabrzkmiszlmylwfnt.supabase.co";
-  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbWFicnprbWlzemxteWx3Zm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NDUwOTgsImV4cCI6MjA3MjEyMTA5OH0.7YYm4Q__xi9LxFJeQKD2O8yARWcj_pc8vnuMQ-Qqx1c";
-  window.SUPABASE_PROJECT_REF = "nemabrzkmiszlmylwfnt";
+  // ====== GANTI ENV DI BAWAH INI ======
+  window.SUPABASE_URL ="https://nemabrzkmiszlmylwfnt.supabase.co";
+  window.SUPABASE_ANON_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbWFicnprbWlzemxteWx3Zm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NDUwOTgsImV4cCI6MjA3MjEyMTA5OH0.7YYm4Q__xi9LxFJeQKD2O8yARWcj_pc8vnuMQ-Qqx1c";
+  window.SUPABASE_PROJECT_REF ="nemabrzkmiszlmylwfnt";
 </script>
 <script type="module" src="app.js"></script>
 </body>
