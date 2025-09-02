@@ -3,267 +3,357 @@ window.SUPABASE_URL ="https://nemabrzkmiszlmylwfnt.supabase.co";
 window.SUPABASE_ANON_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbWFicnprbWlzemxteWx3Zm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NDUwOTgsImV4cCI6MjA3MjEyMTA5OH0.7YYm4Q__xi9LxFJeQKD2O8yARWcj_pc8vnuMQ-Qqx1c";
 window.SUPABASE_PROJECT_REF ="nemabrzkmiszlmylwfnt";
 
-// ====== INIT SUPABASE CLIENT ======
-window.supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, detectSessionInUrl: true }
-});
+// app.js
+// AHL LIMS front-end core (Supabase JS v2, role-based UI)
 
-// ====== AUTH ======
-window.loginWithGoogle = async (redirectTo) => {
-  const { error } = await window.supabaseClient.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo }
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// ====== ENV ======
+const SUPABASE_URL = window.SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "";
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn("SUPABASE_URL / SUPABASE_ANON_KEY belum di-set.");
+}
+export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ====== DOM Helpers ======
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+function safeText(x) {
+  return (x ?? "").toString().replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+}
+
+function setClock(targetSel) {
+  const el = $(targetSel);
+  if (!el) return;
+  el.textContent = new Date().toLocaleString();
+  setInterval(() => (el.textContent = new Date().toLocaleString()), 1000);
+}
+
+const PAGES = ["login", "dashboard", "submit", "users", "all", "verify", "reports", "downloads"];
+export function show(page) {
+  PAGES.forEach((p) => {
+    const el = $(`#page-${p}`);
+    if (el) el.style.display = p === page ? "block" : "none";
   });
-  if (error) alert(error.message);
-};
-window.getJwt = async () => {
-  const { data: { session } } = await window.supabaseClient.auth.getSession();
-  return session?.access_token || null;
-};
-async function refreshAuthUI() {
-  const { data: { user } } = await window.supabaseClient.auth.getUser();
-  const loginBtn = document.getElementById('btn-login');
-  const userArea = document.getElementById('user-area');
-  const logoutBtn = document.getElementById('btn-logout');
-  const userEmail = document.getElementById('user-email');
+}
 
-  if (user) {
-    if (loginBtn) loginBtn.classList.add('hidden');
-    if (userArea) userArea.classList.remove('hidden');
-    if (logoutBtn) logoutBtn.onclick = async () => { await window.supabaseClient.auth.signOut(); location.reload(); };
-    if (userEmail) userEmail.textContent = user.email || '';
+export async function getSession() {
+  const { data } = await sb.auth.getSession();
+  return data.session || null;
+}
+
+export async function getUser() {
+  const { data } = await sb.auth.getUser();
+  return data.user || null;
+}
+
+export async function getProfile(userId) {
+  if (!userId) return null;
+  const { data, error } = await sb.from("app.user_profiles").select("*").eq("user_id", userId).single();
+  if (error) {
+    console.warn("getProfile error:", error.message);
+    return null;
+  }
+  return data;
+}
+
+export function roleIsSupervisor(role) {
+  return role === "supervisor" || role === "admin";
+}
+
+// ====== Rendering helpers ======
+export function renderTable(rows, cols, { actions } = {}) {
+  if (!rows?.length) return `<div class="muted">Tidak ada data.</div>`;
+  const head = `<tr>${cols.map((c) => `<th>${safeText(c)}</th>`).join("")}${actions ? "<th>Aksi</th>" : ""}</tr>`;
+  const body = rows
+    .map((r) => {
+      const tds = cols.map((c) => `<td>${safeText(r[c])}</td>`).join("");
+      const act = actions ? `<td>${actions(r)}</td>` : "";
+      return `<tr>${tds}${act}</tr>`;
+    })
+    .join("");
+  return `<table>${head}${body}</table>`;
+}
+
+// ====== Mine (user submissions) ======
+export async function loadMySubmissions(targetSel, userId) {
+  const target = $(targetSel);
+  if (!target || !userId) return;
+  target.innerHTML = "Memuat...";
+  const { data, error } = await sb
+    .from("app.submissions")
+    .select("submit_code, client_name, pond_site, status, created_at, submitted_at")
+    .eq("submitter_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) {
+    target.textContent = error.message;
+    return;
+  }
+  target.innerHTML = renderTable(data, ["submit_code", "client_name", "pond_site", "status", "created_at", "submitted_at"]);
+}
+
+// ====== Submit form ======
+export function hookSubmitForm(formSel, msgSel) {
+  const form = $(formSel);
+  const msg = $(msgSel);
+  if (!form) return;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const u = await getUser();
+    const payload = {
+      submitter_id: u.id,
+      submit_code: fd.get("submit_code"),
+      client_name: fd.get("client_name"),
+      pond_site: fd.get("pond_site"),
+      notes: fd.get("notes"),
+      status: "SUBMITTED",
+      submitted_at: new Date().toISOString(),
+    };
+    const { data, error } = await sb.from("app.submissions").insert(payload).select();
+    msg.textContent = error ? error.message : `Tersimpan: ${data?.[0]?.submit_code}`;
+    if (!error) form.reset();
+  });
+}
+
+// ====== Users (supervisor) ======
+export async function loadUsers(targetSel) {
+  const target = $(targetSel);
+  if (!target) return;
+  target.innerHTML = "Memuat...";
+  const { data, error } = await sb
+    .from("app.user_profiles")
+    .select("user_id, full_name, role, created_at")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) {
+    target.textContent = error.message;
+    return;
+  }
+  target.innerHTML = renderTable(data, ["full_name", "user_id", "role", "created_at"], {
+    actions: (u) =>
+      `<select class="role-dd" data-uid="${u.user_id}">
+        ${["admin", "supervisor", "analyst", "submitter"]
+          .map((r) => `<option ${r === u.role ? "selected" : ""}>${r}</option>`)
+          .join("")}
+       </select>`,
+  });
+  $$(".role-dd").forEach((dd) =>
+    dd.addEventListener("change", async (e) => {
+      const target_user = e.currentTarget.getAttribute("data-uid");
+      const new_role = e.currentTarget.value;
+      const { error } = await sb.rpc("set_user_role", { target_user, new_role });
+      if (error) alert(error.message);
+      else e.currentTarget.blur();
+    })
+  );
+}
+
+// ====== All submissions (supervisor) ======
+export async function loadAllSubmissions(targetSel) {
+  const target = $(targetSel);
+  if (!target) return;
+  target.innerHTML = "Memuat...";
+  const { data, error } = await sb
+    .from("app.submissions")
+    .select("id, submit_code, client_name, pond_site, status, created_at")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) {
+    target.textContent = error.message;
+    return;
+  }
+  target.innerHTML = renderTable(data, ["submit_code", "client_name", "pond_site", "status", "created_at"], {
+    actions: (x) => `<button class="btn secondary btn-edit" data-id="${x.id}">Edit</button>`,
+  });
+  $$(".btn-edit").forEach((btn) =>
+    btn.addEventListener("click", async (e) => {
+      const id = e.currentTarget.getAttribute("data-id");
+      const client_name = prompt("Client Name baru (kosongkan untuk skip):");
+      const pond_site = prompt("Pond/Site baru (kosongkan untuk skip):");
+      const status = prompt("Status (DRAFT,SUBMITTED,RECEIVED,IN_PROGRESS,COMPLETED,REJECTED,CANCELLED):");
+      const patch = {};
+      if (client_name !== null && client_name !== "") patch.client_name = client_name;
+      if (pond_site !== null && pond_site !== "") patch.pond_site = pond_site;
+      if (status !== null && status !== "") patch.status = status;
+      if (Object.keys(patch).length === 0) return;
+      const { error } = await sb.from("app.submissions").update(patch).eq("id", id);
+      if (error) alert(error.message);
+      else loadAllSubmissions(targetSel);
+    })
+  );
+}
+
+// ====== Verify reports (supervisor) ======
+export async function loadPendingReports(targetSel) {
+  const target = $(targetSel);
+  if (!target) return;
+  target.innerHTML = "Memuat...";
+  const { data, error } = await sb
+    .from("app.reports")
+    .select("id, report_code, status, approved_at")
+    .is("approved_at", null)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) {
+    target.textContent = error.message;
+    return;
+  }
+  target.innerHTML = renderTable(data, ["report_code", "status"], {
+    actions: (r) => `<button class="btn btn-approve" data-id="${r.id}">Approve</button>`,
+  });
+  $$(".btn-approve").forEach((btn) =>
+    btn.addEventListener("click", async (e) => {
+      const id = e.currentTarget.getAttribute("data-id");
+      const u = await getUser();
+      const { error } = await sb
+        .from("app.reports")
+        .update({ approved_by: u.id, approved_at: new Date().toISOString(), status: "COMPLETED" })
+        .eq("id", id);
+      if (error) alert(error.message);
+      else loadPendingReports(targetSel);
+    })
+  );
+}
+
+// ====== Reports (mine & labgroup) ======
+export async function loadMyReports(targetSel, userId) {
+  const target = $(targetSel);
+  if (!target) return;
+  target.innerHTML = "Memuat...";
+  const { data, error } = await sb
+    .from("app.reports")
+    .select("report_code, status, approved_at, submission_id, pdf_url, created_at, app:submissions!inner(submitter_id)")
+    .order("created_at", { ascending: false });
+  if (error) {
+    target.textContent = error.message;
+    return;
+  }
+  const mine = (data || []).filter((r) => r.app?.submitter_id === userId);
+  if (!mine.length) {
+    target.innerHTML = `<div class="muted">Belum ada laporan.</div>`;
+    return;
+  }
+  target.innerHTML = renderTable(
+    mine.map((m) => ({ ...m, pdf: m.pdf_url ? `<a href="${m.pdf_url}" target="_blank" class="btn flat">PDF</a>` : "" })),
+    ["report_code", "status", "approved_at"],
+    { actions: (m) => m.pdf }
+  );
+}
+
+export async function loadLabgroupReports(targetSel) {
+  const target = $(targetSel);
+  if (!target) return;
+  target.innerHTML = "Memuat...";
+  // View publik yang mengandalkan auth.uid(); pastikan grant SELECT sudah diberikan
+  const { data, error } = await sb.from("v_my_labgroup_reports").select("*").limit(500);
+  if (error) {
+    target.textContent = error.message;
+    return;
+  }
+  target.innerHTML = renderTable(data, ["report_code", "report_status", "submit_code", "client_name", "pond_site", "submission_created_at"]);
+}
+
+// ====== Google Login handlers ======
+export function hookAuthButtons() {
+  const btnGoogle = $("#btn-google");
+  const btnLogout = $("#btn-logout");
+  btnGoogle?.addEventListener("click", async () => {
+    await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin + window.location.pathname },
+    });
+  });
+  btnLogout?.addEventListener("click", async () => {
+    await sb.auth.signOut();
+    location.reload();
+  });
+}
+
+// ====== Boot per-halaman ======
+export async function bootIndex() {
+  hookAuthButtons();
+  setClock("#clock");
+
+  const session = await getSession();
+  if (!session) {
+    show("login");
+    $("#top-user") && ($("#top-user").textContent = "");
+    return;
+  }
+  const u = session.user;
+  const profile = await getProfile(u.id);
+  $("#top-user") && ($("#top-user").textContent = `${profile?.full_name || u.email || ""} (${profile?.role || "submitter"})`);
+  $("#role") && ($("#role").textContent = profile?.role || "submitter");
+
+  // Default landing: dashboard
+  show("dashboard");
+  await loadMySubmissions("#mine", u.id);
+
+  // Submit form
+  hookSubmitForm("#submit-form", "#submit-msg");
+
+  // Supervisor console
+  if (roleIsSupervisor(profile?.role)) {
+    const block = $("#supervisor-block");
+    if (block) block.style.display = "block";
+
+    // Lazy hooks
+    $('[data-page="users"]')?.addEventListener("click", () => loadUsers("#users"));
+    $('[data-page="all"]')?.addEventListener("click", () => loadAllSubmissions("#all"));
+    $('[data-page="verify"]')?.addEventListener("click", () => loadPendingReports("#verify"));
   } else {
-    if (loginBtn) {
-      loginBtn.classList.remove('hidden');
-      loginBtn.onclick = async () => window.loginWithGoogle(location.href);
-    }
-    if (userArea) userArea.classList.add('hidden');
+    const block = $("#supervisor-block");
+    if (block) block.style.display = "none";
+  }
+
+  // Generic nav
+  $$('[data-page]').forEach((a) =>
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      show(e.currentTarget.getAttribute("data-page"));
+    })
+  );
+
+  // Live auth state
+  sb.auth.onAuthStateChange(async () => {
+    const s = await getSession();
+    if (!s) { show("login"); return; }
+  });
+}
+
+export async function bootReportsPage() {
+  hookAuthButtons();
+  const session = await getSession();
+  if (!session) { show("login"); return; }
+  const u = session.user;
+  const profile = await getProfile(u.id);
+  $("#whoami") && ($("#whoami").textContent = `${profile?.full_name || u.email || ""} (${profile?.role || "submitter"})`);
+
+  await loadMyReports("#reports-mine", u.id);
+  if (roleIsSupervisor(profile?.role)) {
+    $("#labgroup-wrap") && ($("#labgroup-wrap").style.display = "block");
+    await loadLabgroupReports("#reports-labgroup");
   }
 }
 
-// ====== NAV / TABS ======
-function bindNav() {
-  const links = document.querySelectorAll('.nav-link');
-  const panes = document.querySelectorAll('.tab-pane');
-  links.forEach(a => {
-    a.onclick = (e) => {
-      e.preventDefault();
-      const tab = a.getAttribute('data-tab');
-      links.forEach(l => l.classList.remove('active'));
-      a.classList.add('active');
-      panes.forEach(p => p.classList.remove('active'));
-      document.getElementById(`tab-${tab}`).classList.add('active');
-    };
-  });
-  // landing hero buttons
-  document.querySelectorAll('[data-goto]').forEach(btn => {
-    btn.onclick = () => {
-      const tab = btn.getAttribute('data-goto');
-      document.querySelector(`.nav-link[data-tab="${tab}"]`).click();
-    };
-  });
+export async function bootDownloadsPage() {
+  hookAuthButtons();
+  const session = await getSession();
+  if (!session) { show("login"); return; }
+  const u = session.user;
+  const profile = await getProfile(u.id);
+  $("#whoami") && ($("#whoami").textContent = `${profile?.full_name || u.email || ""} (${profile?.role || "submitter"})`);
+  await loadMyReports("#downloads-mine", u.id);
 }
 
-// ====== CLOCK ======
-function startClocks() {
-  const el1 = document.getElementById('clock');
-  const el2 = document.getElementById('clock-big');
-  const tick = () => {
-    const now = new Date();
-    const pad = (n) => String(n).padStart(2,'0');
-    const s = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    if (el1) el1.textContent = s;
-    if (el2) el2.textContent = s;
-  };
-  tick();
-  setInterval(tick, 1000);
-}
+// Auto-detect which page to boot
+document.addEventListener("DOMContentLoaded", () => {
+  if ($("#page-dashboard") || $("#page-login")) return void bootIndex();
+  if ($("#reports-root")) return void bootReportsPage();
+  if ($("#downloads-root")) return void bootDownloadsPage();
+});
 
-// ====== CALENDAR ======
-function buildCalendar() {
-  const el = document.getElementById('calendar');
-  if (!el) return;
-  const today = new Date();
-  let y = today.getFullYear();
-  let m = today.getMonth();
-
-  const render = () => {
-    const first = new Date(y, m, 1);
-    const last = new Date(y, m + 1, 0);
-    const startDay = first.getDay(); // 0=Sun
-    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <button class="btn btn-outline" id="cal-prev">&lt;</button>
-      <div><b>${first.toLocaleString('id-ID',{ month:'long' })} ${y}</b></div>
-      <button class="btn btn-outline" id="cal-next">&gt;</button>
-    </div>
-    <table><thead><tr>
-      <th>Min</th><th>Sen</th><th>Sel</th><th>Rab</th><th>Kam</th><th>Jum</th><th>Sab</th>
-    </tr></thead><tbody><tr>`;
-
-    // pad kosong
-    for (let i=0;i<((startDay+6)%7);i++) html += `<td></td>`;
-
-    let dow = (startDay+6)%7;
-    for (let d=1; d<=last.getDate(); d++) {
-      const cls = [];
-      const isToday = (y===today.getFullYear() && m===today.getMonth() && d===today.getDate());
-      if (isToday) cls.push('today');
-      html += `<td><div class="day ${cls.join(' ')}" data-d="${d}">${d}</div></td>`;
-      dow++;
-      if (dow===7 && d<last.getDate()) { html += `</tr><tr>`; dow=0; }
-    }
-    html += `</tr></tbody></table>`;
-    el.innerHTML = html;
-
-    document.getElementById('cal-prev').onclick = () => { m--; if (m<0){m=11;y--;} render(); };
-    document.getElementById('cal-next').onclick = () => { m++; if (m>11){m=0;y++;} render(); };
-    el.querySelectorAll('.day').forEach(d => {
-      d.onclick = () => {
-        const picked = new Date(y, m, Number(d.getAttribute('data-d')));
-        const fmt = picked.toISOString().slice(0,10);
-        const out = document.getElementById('calendar-picked');
-        if (out) out.textContent = `Tanggal dipilih: ${fmt}`;
-      };
-    });
-  };
-  render();
-}
-
-// ====== DASHBOARD DATA ======
-async function ensureLogin() {
-  const { data: { user } } = await window.supabaseClient.auth.getUser();
-  if (!user) { await window.loginWithGoogle(location.href); return false; }
-  return true;
-}
-async function fetchLabGroups() {
-  if (!(await ensureLogin())) return [];
-  const { data, error } = await window.supabaseClient
-    .from('v_my_labgroup_reports')
-    .select('*')
-    .order('lab_group_id', { ascending: false })
-    .limit(50);
-  if (error) { alert(error.message); return []; }
-  return data || [];
-}
-window.rpcRenderReportHtml = async (labGroupId) => {
-  if (!(await ensureLogin())) return '';
-  const { data, error } = await window.supabaseClient.rpc('rpc_render_report_html', {
-    p_lab_group_id: labGroupId,
-    p_template_key: 'LABGROUP_REPORT_V1'
-  });
-  if (error) { alert(error.message); return ''; }
-  return data || '';
-};
-window.enqueueExport = async (labGroupId) => {
-  if (!(await ensureLogin())) return;
-  const fileUri = `lims-reports/result/${labGroupId}/report.html`;
-  const { data, error } = await window.supabaseClient.rpc('rpc_enqueue_report_export', {
-    p_lab_group_id: labGroupId,
-    p_template_key: 'LABGROUP_REPORT_V1',
-    p_file_uri: fileUri
-  });
-  if (error) alert(error.message);
-  else alert(`Job enqueued: ${data}`);
-};
-
-// bind tombol dashboard
-function bindDashboard() {
-  const btnLoad = document.getElementById('btn-load');
-  const tbody = document.getElementById('tbl-lg-body');
-  if (!btnLoad || !tbody) return;
-  btnLoad.onclick = async () => {
-    tbody.innerHTML = `<tr><td colspan="5" class="muted">Memuat…</td></tr>`;
-    const rows = await fetchLabGroups();
-    if (!rows || rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" class="muted">Tidak ada data.</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = rows.map(r => `
-      <tr>
-        <td>${r.lab_group_id}</td>
-        <td>${r.lab} / ${r.site}</td>
-        <td>${r.status}</td>
-        <td>${r.eta_target ?? ''}</td>
-        <td>
-          <a class="btn" href="./report.html?id=${r.lab_group_id}">Preview</a>
-          <button class="btn btn-outline" onclick="enqueueExport('${r.lab_group_id}')">Enqueue Export</button>
-          <a class="btn" href="./download.html?id=${r.lab_group_id}">Unduh</a>
-        </td>
-      </tr>
-    `).join('');
-  };
-}
-
-// ====== SUBMIT SAMPLE ======
-// Catatan: butuh RLS INSERT utk app.submission & app.sampling_event
-async function submitSample(form) {
-  if (!(await ensureLogin())) return;
-  const fd = new FormData(form);
-  const case_type = fd.get('case_type');
-  const urgency = fd.get('urgency');
-  const anamnesis = fd.get('anamnesis') || null;
-  const division = fd.get('division') || null;
-  const sampling_datetime = fd.get('sampling_datetime');
-  const doc = fd.get('doc') ? Number(fd.get('doc')) : null;
-  const shipping_date = fd.get('shipping_date');
-  const lab = fd.get('lab');
-
-  // 1) insert submission
-  const { data: subm, error: e1 } = await window.supabaseClient
-    .from('app.submission')
-    .insert([{
-      case_type, urgency, anamnesis, case_notes: division   // simpan divisi di case_notes sederhana
-    }])
-    .select('submission_id')
-    .single();
-  if (e1) { alert(e1.message); return; }
-
-  // 2) insert sampling_event
-  const { error: e2 } = await window.supabaseClient
-    .from('app.sampling_event')
-    .insert([{
-      submission_id: subm.submission_id,
-      sampling_datetime,
-      doc,
-      shipping_date
-    }]);
-  if (e2) { alert(e2.message); return; }
-
-  // 3) buat minimal 1 lab_group (sesuai lab tujuan)
-  const { error: e3 } = await window.supabaseClient
-    .from('app.lab_group')
-    .insert([{
-      submission_id: subm.submission_id,
-      lab,
-      site: 'CENTRAL',        // sesuaikan jika mau pilih site di form
-      status: 'REQUESTED'
-    }]);
-  if (e3) { alert(e3.message); return; }
-
-  document.getElementById('submit-msg').textContent = 'Submit berhasil. Admin akan memverifikasi.';
-  form.reset();
-}
-
-function bindSubmitForm() {
-  const form = document.getElementById('form-submit');
-  if (!form) return;
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    document.getElementById('submit-msg').textContent = 'Mengirim…';
-    try { await submitSample(form); }
-    catch (err) { alert(String(err)); }
-  };
-}
-
-// ====== BOOT ======
-window.appInit = async () => {
-  bindNav();
-  await refreshAuthUI();
-  bindDashboard();
-  bindSubmitForm();
-  startClocks();
-  buildCalendar();
-};
-
-// auto-init
-window.addEventListener('DOMContentLoaded', window.appInit);
