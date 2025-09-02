@@ -1,179 +1,75 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Laboratory Information Management System</title>
-  <link rel="stylesheet" href="./style.css" />
-  <script src="https://unpkg.com/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
-  <script defer src="./app.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Laboratory Information Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:#f7fafc;color:#1a202c}
+header,footer{background:#1f2937;color:#fff;padding:12px 20px}
+.container{max-width:1100px;margin:0 auto;padding:20px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+button, .btn{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px 14px;cursor:pointer}
+.btn.secondary{background:#6b7280}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.muted{color:#6b7280}
+.menu a{display:inline-block;margin-right:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+input,select{padding:10px;border:1px solid #d1d5db;border-radius:8px;width:100%}
+label{font-size:12px;color:#374151}
+</style>
 </head>
 <body>
-  <!-- HEADER / NAV -->
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-title">Laboratory Information Management System</div>
-      <div class="brand-sub">LIMS-AHL</div>
-    </div>
-    <nav class="nav">
-      <a href="#" data-tab="landing" class="nav-link active">Home</a>
-      <a href="#" data-tab="dashboard" class="nav-link">Dashboard</a>
-      <a href="#" data-tab="submit" class="nav-link">Submit Sample</a>
-      <a href="#" data-tab="calendar" class="nav-link">Calendar</a>
-    </nav>
-    <div id="auth-area" class="auth-area">
-      <button id="btn-login" class="btn">Login Google</button>
-      <div id="user-area" class="user-area hidden">
-        <span id="user-email"></span>
-        <button id="btn-logout" class="btn btn-outline">Logout</button>
-      </div>
-    </div>
-  </header>
+<header>
+<div class="container" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+<div style="font-weight:700">Laboratory Information Management System</div>
+<div id="auth-area">
+<button id="btn-login">Login</button>
+<button id="btn-logout" class="btn secondary" style="display:none">Logout</button>
+</div>
+</div>
+</header>
 
-  <!-- MAIN -->
-  <main class="container">
 
-    <!-- LANDING -->
-    <section id="tab-landing" class="tab-pane active">
-      <div class="hero">
-        <h1>Selamat datang di LIMS-AHL</h1>
-        <p class="muted">
-          Sistem manajemen informasi laboratorium untuk alur sampel akuakultur:
-          registrasi, tracking, analisis, dan rilis hasil.
-        </p>
-        <div class="hero-actions">
-          <button class="btn" data-goto="submit">Mulai Submit Sample</button>
-          <button class="btn btn-outline" data-goto="dashboard">Lihat Dashboard</button>
-        </div>
-      </div>
-      <div class="cards">
-        <div class="card">
-          <h3>Kap. & SLA</h3>
-          <p class="muted">Pantau beban harian lab & potensi keterlambatan.</p>
-        </div>
-        <div class="card">
-          <h3>Barcode & SPREC</h3>
-          <p class="muted">Dukungan penandaan dan metadata standar SPREC.</p>
-        </div>
-        <div class="card">
-          <h3>Notifikasi Email</h3>
-          <p class="muted">Status & hasil dikirim ke email terdaftar.</p>
-        </div>
-      </div>
-    </section>
+<main class="container">
+<!-- Landing Page -->
+<section id="landing" class="card">
+<h2>Welcome to AHL LIMS</h2>
+<p class="muted">Manage sample submissions, track tests, and generate reports.</p>
+<div class="menu" style="margin-top:8px">
+<a href="#" class="btn" data-page="submit">Submit Sample</a>
+<a href="#" class="btn" data-page="calendar">Calendar</a>
+<a href="#" class="btn" data-page="reports">My Reports</a>
+</div>
+<div style="margin-top:12px" class="muted">Time now: <span id="clock"></span></div>
+</section>
 
-    <!-- DASHBOARD -->
-    <section id="tab-dashboard" class="tab-pane">
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Dashboard Laporan</h2>
-          <div class="actions">
-            <button id="btn-load" class="btn">Muat LabGroup</button>
-            <span class="clock" id="clock"></span>
-          </div>
-        </div>
-        <table class="table" id="tbl-lg">
-          <thead>
-            <tr>
-              <th>LabGroup</th>
-              <th>Lab / Site</th>
-              <th>Status</th>
-              <th>ETA</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="tbl-lg-body">
-            <tr><td colspan="5" class="muted">Klik “Muat LabGroup”.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
 
-    <!-- SUBMIT SAMPLE -->
-    <section id="tab-submit" class="tab-pane">
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Submit Sample</h2>
-          <p class="muted">Isi metadata dasar; detail lanjutan bisa dilengkapi di tahap verifikasi admin.</p>
-        </div>
-
-        <form id="form-submit" class="form">
-          <div class="grid-2">
-            <div class="form-group">
-              <label>Jenis Kasus</label>
-              <select name="case_type" required>
-                <option value="MONITORING">Monitoring</option>
-                <option value="KASUS">Kasus Khusus</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Urgensi</label>
-              <select name="urgency" required>
-                <option value="NORMAL">Normal</option>
-                <option value="URGENT">Urgent</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Anamnesis / Keterangan</label>
-              <textarea name="anamnesis" rows="3" placeholder="Riwayat, gejala, catatan"></textarea>
-            </div>
-            <div class="form-group">
-              <label>Divisi / Department</label>
-              <input name="division" placeholder="Contoh: Research" />
-            </div>
-            <div class="form-group">
-              <label>Sampling Date & Time</label>
-              <input type="datetime-local" name="sampling_datetime" required />
-            </div>
-            <div class="form-group">
-              <label>DOC (Day of Culture / Age)</label>
-              <input type="number" min="0" name="doc" placeholder="mis. 45" />
-            </div>
-            <div class="form-group">
-              <label>Tanggal Pengiriman</label>
-              <input type="date" name="shipping_date" required />
-            </div>
-            <div class="form-group">
-              <label>Tujuan Lab</label>
-              <select name="lab" required>
-                <option value="PCR">PCR</option>
-                <option value="MIKROBIOLOGI">Mikrobiologi</option>
-                <option value="WQ">Water Quality</option>
-                <option value="HISTO">Histopatologi</option>
-                <option value="IMUNO">Imunoserologi</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-actions">
-            <button type="submit" class="btn">Submit</button>
-            <span id="submit-msg" class="muted"></span>
-          </div>
-        </form>
-      </div>
-    </section>
-
-    <!-- CALENDAR -->
-    <section id="tab-calendar" class="tab-pane">
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Calendar</h2>
-          <p class="muted">Lihat tanggal & waktu. Klik hari untuk memilih.</p>
-        </div>
-        <div class="calendar-wrap">
-          <div class="calendar" id="calendar"></div>
-          <div class="calendar-side">
-            <div class="clock-big" id="clock-big"></div>
-            <div id="calendar-picked" class="muted">Tanggal dipilih: -</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <footer class="footer">
-    <small>Provided by: <b>Animal Health Laboratory</b></small>
-  </footer>
-</body>
+<!-- Submit Sample -->
+<section id="page-submit" class="card" style="display:none">
+<h3>Submit Sample</h3>
+<form id="submit-form">
+<div class="grid">
+<div>
+<label>Client Name</label>
+<input name="client_name" placeholder="PT Contoh Sejahtera" />
+</div>
+<div>
+<label>Pond/Site</label>
+<input name="pond_site" placeholder="Tambak A-3" />
+</div>
+<div>
+<label>Submission Code</label>
+<input name="submit_code" placeholder="SUB-2025-0001" required />
+</div>
+<div>
+<label>Notes</label>
+<input name="notes" placeholder="Keterangan singkat" />
+</div>
+</div>
+<div style="margin-top:12px">
+<button type="submit" class="btn">Save Draft</button>
+<button type="button" id="btn-submit-final" class="btn secondary">Submit</button>
 </html>
