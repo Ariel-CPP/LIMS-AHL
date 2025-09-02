@@ -1,65 +1,116 @@
 <!doctype html>
-if(pond_site!==null && pond_site!=='') patch.pond_site = pond_site;
-if(status!==null && status!=='') patch.status = status;
-if(Object.keys(patch).length===0) return;
-const { error } = await supabase.from('app.submissions').update(patch).eq('id', id);
-if(error) alert(error.message); else loadAll();
-});
-});
-}
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>AHL LIMS</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<header>
+  <div class="container hdr">
+    <div class="brand">Laboratory Information Management System</div>
+    <div id="top-user" class="muted"></div>
+  </div>
+</header>
 
+<main class="container">
+  <!-- LOGIN -->
+  <section id="page-login" class="card">
+    <h2>Masuk dengan Google</h2>
+    <p class="muted">Gunakan akun Google Anda untuk mengakses AHL LIMS.</p>
+    <button id="btn-google" class="btn">Login Google</button>
+  </section>
 
-// Supervisor: Verify Results (approve reports)
-async function loadVerify(){
-const { data, error } = await supabase.from('app.reports')
-.select('id, report_code, status, approved_at, submission_id')
-.is('approved_at', null)
-.order('created_at', { ascending:false }).limit(200);
-if(error){ $('#verify').textContent = error.message; return; }
-if(!data?.length){ $('#verify').innerHTML = '<div class="muted">Tidak ada report untuk diverifikasi.</div>'; return; }
-const rows = data.map(r=>
-`<tr>
-<td>${r.report_code}</td>
-<td>${r.status}</td>
-<td><button class="btn btn-approve" data-id="${r.id}">Approve</button></td>
-</tr>`).join('');
-$('#verify').innerHTML = `<table><tr><th>Report</th><th>Status</th><th>Aksi</th></tr>${rows}</table>`;
-document.querySelectorAll('.btn-approve').forEach(btn=>{
-btn.addEventListener('click', async (e)=>{
-const id = e.currentTarget.getAttribute('data-id');
-const u = (await supabase.auth.getUser()).data.user;
-const { error } = await supabase.from('app.reports').update({ approved_by: u.id, approved_at: new Date().toISOString(), status: 'COMPLETED' }).eq('id', id);
-if(error) alert(error.message); else loadVerify();
-});
-});
-}
+  <!-- DASHBOARD -->
+  <section id="page-dashboard" class="card" style="display:none">
+    <div class="row">
+      <h2>Dashboard</h2>
+      <div class="row-actions">
+        <a href="#" class="btn" data-page="submit">Pengajuan Sample</a>
+        <a href="report.html" class="btn secondary">Reports</a>
+        <a href="download.html" class="btn secondary">Downloads</a>
+        <button id="btn-logout" class="btn secondary">Logout</button>
+      </div>
+    </div>
+    <div class="muted">Waktu: <span id="clock"></span> • Peran: <span id="role"></span></div>
 
+    <div class="card">
+      <h3>Sample Saya</h3>
+      <div id="mine"></div>
+    </div>
 
-// Navigation hooks
-document.querySelector('[data-page="users"]').addEventListener('click', loadUsers);
-document.querySelector('[data-page="all"]').addEventListener('click', loadAll);
-document.querySelector('[data-page="verify"]').addEventListener('click', loadVerify);
+    <div id="supervisor-block" style="display:none">
+      <div class="card">
+        <h3>Konsol Supervisor</h3>
+        <nav class="nav">
+          <a href="#" class="btn flat" data-page="users">Users</a>
+          <a href="#" class="btn flat" data-page="all">All Samples</a>
+          <a href="#" class="btn flat" data-page="verify">Verify Results</a>
+        </nav>
+      </div>
+    </div>
+  </section>
 
+  <!-- SUBMIT -->
+  <section id="page-submit" class="card" style="display:none">
+    <h3>Pengajuan Sample</h3>
+    <form id="submit-form">
+      <div class="grid">
+        <div>
+          <label>Submission Code</label>
+          <input name="submit_code" required placeholder="SUB-2025-0001"/>
+        </div>
+        <div>
+          <label>Client Name</label>
+          <input name="client_name" placeholder="PT Contoh Sejahtera"/>
+        </div>
+        <div>
+          <label>Pond/Site</label>
+          <input name="pond_site" placeholder="Tambak A-3"/>
+        </div>
+        <div>
+          <label>Notes</label>
+          <input name="notes" placeholder="Keterangan singkat"/>
+        </div>
+      </div>
+      <div class="space-top">
+        <button type="submit" class="btn">Simpan</button>
+        <a href="#" class="btn secondary" data-page="dashboard">Kembali</a>
+      </div>
+    </form>
+    <div id="submit-msg" class="muted space-top"></div>
+  </section>
 
-// Boot flow
-async function boot(){
-const { data: { session } } = await supabase.auth.getSession();
-if(!session){ show('login'); $('#top-user').textContent=''; return; }
-const user = session.user;
-const profile = await getProfile(user.id);
-$('#top-user').textContent = (profile?.full_name||user.email||'') + ' (' + (profile?.role||'submitter') + ')';
-$('#role').textContent = profile?.role || 'submitter';
-show('dashboard');
-await renderMine(user);
-if(profile?.role==='supervisor' || profile?.role==='admin'){
-$('#supervisor-block').style.display='block';
-} else {
-$('#supervisor-block').style.display='none';
-}
-}
+  <!-- USERS (Supervisor) -->
+  <section id="page-users" class="card" style="display:none">
+    <h3>Users</h3>
+    <div id="users"></div>
+    <p class="muted">Role diubah via RPC <code>app.set_user_role</code>.</p>
+  </section>
 
+  <!-- ALL SAMPLES (Supervisor) -->
+  <section id="page-all" class="card" style="display:none">
+    <h3>All Samples</h3>
+    <div id="all"></div>
+  </section>
 
-await boot();
+  <!-- VERIFY (Supervisor) -->
+  <section id="page-verify" class="card" style="display:none">
+    <h3>Verify Results</h3>
+    <div id="verify"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">Provided by: Animal Health Laboratory</div>
+</footer>
+
+<!-- ====== ENV (ISI nilainya) ====== -->
+<script>
+  window.SUPABASE_URL = window.SUPABASE_URL || "https://YOUR-PROJECT.supabase.co";
+  window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "YOUR-ANON-KEY";
 </script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
